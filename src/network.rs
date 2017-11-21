@@ -5,8 +5,8 @@ use std::sync::mpsc::{channel, Sender};
 use std::error::Error;
 use std::net::Ipv4Addr;
 
-use network_manager::{AccessPoint, Connection, ConnectionState, Connectivity, Device, DeviceState,
-                      DeviceType, NetworkManager, ServiceState};
+use network_manager::{AccessPoint, Connection, ConnectionState, Connectivity, Device, DeviceType,
+                      NetworkManager, ServiceState};
 
 use {exit, ExitResult};
 use config::Config;
@@ -15,6 +15,7 @@ use server::start_server;
 
 pub enum NetworkCommand {
     Activate,
+    Timeout,
     Connect { ssid: String, passphrase: String },
 }
 
@@ -58,11 +59,23 @@ pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
     let (network_tx, network_rx) = channel();
 
     let exit_tx_server = exit_tx.clone();
+    let network_tx_timeout = network_tx.clone();
     let gateway = config.gateway;
     let ui_path = config.ui_path.clone();
+
     thread::spawn(move || {
         start_server(gateway, server_rx, network_tx, exit_tx_server, &ui_path);
     });
+
+    thread::spawn(move || {
+        thread::sleep(Duration::from_secs(60));
+
+        if let Err(err) = network_tx_timeout.send(NetworkCommand::Timeout) {
+            error!("Sending NetworkCommand::Timeout failed: {}", err.description());
+        }
+    });
+
+    let mut activated = false;
 
     loop {
         let command = match network_rx.recv() {
@@ -82,6 +95,8 @@ pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
 
         match command {
             NetworkCommand::Activate => {
+                activated = true;
+
                 let access_points_ssids = get_access_points_ssids_owned(&access_points);
 
                 if let Err(e) = server_tx.send(NetworkCommandResponse::AccessPointsSsids(
@@ -96,6 +111,18 @@ pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
                             "Sending access point ssids results failed: {}",
                             e.description()
                         ),
+                    );
+                }
+            },
+            NetworkCommand::Timeout => {
+                if activated == false {
+                    info!("Timeout reached. Exiting...");
+
+                    return exit_ok(
+                        exit_tx,
+                        dnsmasq,
+                        portal_connection,
+                        portal_ssid,
                     );
                 }
             },
@@ -207,133 +234,13 @@ pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
     }
 }
 
-pub fn handle_existing_wifi_connections(clear: bool, interface: &Option<String>) {
-    let manager = NetworkManager::new();
+pub fn init_networking() {
+    start_network_manager_service();
 
-    if let Err(err) = stop_access_point(&manager) {
+    if let Err(err) = stop_access_point() {
         error!("Stopping access point failed: {}", err);
         process::exit(1);
     }
-
-    let connections = get_existing_wifi_connections(&manager);
-
-    if clear {
-        if let Err(err) = clear_wifi_connections(connections) {
-            error!("Clearing WiFi connections failed: {}", err);
-            process::exit(1);
-        }
-    } else if !connections.is_empty() {
-        if has_full_connectivity(&manager) && has_activated_device(&manager, interface) {
-            info!("The device has a network connection");
-            process::exit(0);
-        }
-
-        try_activate_wifi_connection(connections);
-    }
-}
-
-fn has_full_connectivity(manager: &NetworkManager) -> bool {
-    match manager.get_connectivity() {
-        Ok(connectivity) => {
-            if connectivity == Connectivity::Full {
-                info!("The host appears to be able to reach the full Internet");
-                true
-            } else {
-                info!("The host does not appear to be able to reach the full Internet");
-                false
-            }
-        },
-        Err(err) => {
-            error!(
-                "Assuming no connectivity as checking for network connectivity failed: {}",
-                err
-            );
-            false
-        },
-    }
-}
-
-fn has_activated_device(manager: &NetworkManager, interface: &Option<String>) -> bool {
-    let device = match find_device(manager, interface) {
-        Ok(device) => device,
-        Err(e) => {
-            error!("{}", e);
-            return false;
-        },
-    };
-
-    match device.get_state() {
-        Ok(state) => state == DeviceState::Activated,
-        Err(e) => {
-            error!("Cannot get device state: {}", e);
-            false
-        },
-    }
-}
-
-fn clear_wifi_connections(connections: Vec<Connection>) -> Result<(), String> {
-    for connection in connections {
-        if &connection.settings().kind == "802-11-wireless" {
-            info!(
-                "Deleting WiFi connection profile to {:?}...",
-                connection.settings().ssid,
-            );
-
-            debug!(
-                "ID [{}] UUID {}",
-                connection.settings().id,
-                connection.settings().uuid
-            );
-            connection.delete()?;
-        }
-    }
-
-    Ok(())
-}
-
-fn get_existing_wifi_connections(manager: &NetworkManager) -> Vec<Connection> {
-    let mut connections = match manager.get_connections() {
-        Ok(connections) => connections,
-        Err(err) => {
-            error!("Getting existing connections failed: {}", err);
-            process::exit(1)
-        },
-    };
-
-    connections.retain(|c| &c.settings().kind == "802-11-wireless" && &c.settings().mode != "ap");
-
-    connections
-}
-
-fn try_activate_wifi_connection(connections: Vec<Connection>) {
-    for connection in connections {
-        match connection.activate() {
-            Ok(state) => {
-                if state == ConnectionState::Activated {
-                    info!(
-                        "Activated WiFi connection to {:?}: [{}] {}",
-                        connection.settings().ssid,
-                        connection.settings().id,
-                        connection.settings().uuid
-                    );
-                    process::exit(0);
-                } else {
-                    debug!(
-                        "Cannot activate WiFi connection to {:?}: [{}] {}",
-                        connection.settings().ssid,
-                        connection.settings().id,
-                        connection.settings().uuid
-                    );
-                }
-            },
-            Err(err) => {
-                warn!("Activating existing WiFi connection failed: {}", err);
-            },
-        }
-    }
-
-    info!("Cannot activate any existing WiFi connection");
-    process::exit(0);
 }
 
 pub fn find_device(manager: &NetworkManager, interface: &Option<String>) -> Result<Device, String> {
@@ -545,7 +452,9 @@ pub fn start_network_manager_service() {
     }
 }
 
-fn stop_access_point(manager: &NetworkManager) -> Result<(), String> {
+fn stop_access_point() -> Result<(), String> {
+    let manager = NetworkManager::new();
+
     let connections = manager.get_active_connections()?;
 
     for connection in connections {

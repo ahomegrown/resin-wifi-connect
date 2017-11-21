@@ -16,7 +16,6 @@ pub struct Config {
     pub interface: Option<String>,
     pub ssid: String,
     pub passphrase: Option<String>,
-    pub clear: bool,
     pub gateway: Ipv4Addr,
     pub dhcp_range: String,
     pub timeout: u64,
@@ -77,14 +76,6 @@ pub fn get_config() -> Config {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("clear")
-                .short("c")
-                .long("clear")
-                .value_name("true|false")
-                .help("Clear saved WiFi credentials (default: true)")
-                .takes_value(true),
-        )
-        .arg(
             Arg::with_name("ui-path")
                 .short("u")
                 .long("ui-path")
@@ -109,8 +100,6 @@ pub fn get_config() -> Config {
         |v| Some(v.to_string()),
     );
 
-    let clear = matches.value_of("clear").map_or(true, |v| !(v == "false"));
-
     let gateway = Ipv4Addr::from_str(&matches.value_of("portal-gateway").map_or_else(
         || env::var("PORTAL_GATEWAY").unwrap_or_else(|_| DEFAULT_GATEWAY.to_string()),
         String::from,
@@ -133,7 +122,6 @@ pub fn get_config() -> Config {
         interface: interface,
         ssid: ssid,
         passphrase: passphrase,
-        clear: clear,
         gateway: gateway,
         dhcp_range: dhcp_range,
         timeout: timeout,

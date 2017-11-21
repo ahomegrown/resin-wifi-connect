@@ -165,7 +165,7 @@ pub fn start_server(
 }
 
 fn ssid(req: &mut Request) -> IronResult<Response> {
-    debug!("Incoming `ssid` request");
+    info!("User connected to the captive portal");
 
     let request_state = get_request_state!(req);
 
@@ -197,7 +197,7 @@ fn ssid(req: &mut Request) -> IronResult<Response> {
         Err(err) => exit_with_error!(
             request_state,
             format!(
-                "Receiving access points ssids failed: {}",
+                "Serializing access points ssids failed: {}",
                 err.description()
             )
         ),
