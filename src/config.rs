@@ -9,8 +9,8 @@ use std::ffi::OsStr;
 const DEFAULT_GATEWAY: &str = "192.168.42.1";
 const DEFAULT_DHCP_RANGE: &str = "192.168.42.2,192.168.42.254";
 const DEFAULT_SSID: &str = "WiFi Connect";
-const DEFAULT_TIMEOUT_MS: &str = "15000";
-const DEFAULT_UI_PATH: &str = "public";
+const DEFAULT_ACTIVITY_TIMEOUT: &str = "0";
+const DEFAULT_UI_DIRECTORY: &str = "ui";
 
 pub struct Config {
     pub interface: Option<String>,
@@ -18,8 +18,8 @@ pub struct Config {
     pub passphrase: Option<String>,
     pub gateway: Ipv4Addr,
     pub dhcp_range: String,
-    pub timeout: u64,
-    pub ui_path: PathBuf,
+    pub activity_timeout: u64,
+    pub ui_directory: PathBuf,
 }
 
 pub fn get_config() -> Config {
@@ -68,19 +68,19 @@ pub fn get_config() -> Config {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("timeout")
-                .short("t")
-                .long("timeout")
-                .value_name("timeout")
-                .help("Connect timeout (milliseconds)")
+            Arg::with_name("activity-timeout")
+                .short("a")
+                .long("activity-timeout")
+                .value_name("activity_timeout")
+                .help("Activity timeout (seconds) (default: 0 - no timeout)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("ui-path")
+            Arg::with_name("ui-directory")
                 .short("u")
-                .long("ui-path")
-                .value_name("ui_path")
-                .help("Web UI location")
+                .long("ui-directory")
+                .value_name("ui_directory")
+                .help("Web UI directory location")
                 .takes_value(true),
         )
         .get_matches();
@@ -110,13 +110,12 @@ pub fn get_config() -> Config {
         String::from,
     );
 
-    // TODO: network_manager receives the timeout in seconds, should be ms instead.
-    let timeout = u64::from_str(&matches.value_of("timeout").map_or_else(
-        || env::var("CONNECT_TIMEOUT").unwrap_or_else(|_| DEFAULT_TIMEOUT_MS.to_string()),
+    let activity_timeout = u64::from_str(&matches.value_of("activity-timeout").map_or_else(
+        || env::var("ACTIVITY_TIMEOUT").unwrap_or_else(|_| DEFAULT_ACTIVITY_TIMEOUT.to_string()),
         String::from,
-    )).expect("Cannot parse connect timeout") / 1000;
+    )).expect("Cannot parse activity timeout");
 
-    let ui_path = get_ui_path(matches.value_of("ui-path"));
+    let ui_directory = get_ui_directory(matches.value_of("ui-directory"));
 
     Config {
         interface: interface,
@@ -124,31 +123,31 @@ pub fn get_config() -> Config {
         passphrase: passphrase,
         gateway: gateway,
         dhcp_range: dhcp_range,
-        timeout: timeout,
-        ui_path: ui_path,
+        activity_timeout: activity_timeout,
+        ui_directory: ui_directory,
     }
 }
 
-fn get_ui_path(cmd_ui_path: Option<&str>) -> PathBuf {
-    if let Some(ui_path) = cmd_ui_path {
-        return PathBuf::from(ui_path);
+fn get_ui_directory(cmd_ui_directory: Option<&str>) -> PathBuf {
+    if let Some(ui_directory) = cmd_ui_directory {
+        return PathBuf::from(ui_directory);
     }
 
-    if let Ok(ui_path) = env::var("UI_PATH") {
-        return PathBuf::from(ui_path);
+    if let Ok(ui_directory) = env::var("UI_DIRECTORY") {
+        return PathBuf::from(ui_directory);
     }
 
-    if let Some(install_ui_path) = get_install_ui_path() {
-        return install_ui_path;
+    if let Some(install_ui_directory) = get_install_ui_directory() {
+        return install_ui_directory;
     }
 
-    PathBuf::from(DEFAULT_UI_PATH)
+    PathBuf::from(DEFAULT_UI_DIRECTORY)
 }
 
 /// Checks whether `WiFi Connect` is running from install path and whether the
 /// UI directory is present in a corresponding location
 /// e.g. /usr/local/sbin/wifi-connect -> /usr/local/share/wifi-connect/ui
-fn get_install_ui_path() -> Option<PathBuf> {
+fn get_install_ui_directory() -> Option<PathBuf> {
     if let Ok(exe_path) = env::current_exe() {
         if let Ok(mut path) = exe_path.canonicalize() {
             path.pop();

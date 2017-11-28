@@ -14,12 +14,6 @@
 
 Command line options have environment variable counterpart. If both a command line option and its environment variable counterpart are defined, the command line option will take higher precedence.
 
-*   **-c, --clear** true|false
-
-    Clear saved WiFi credentials
-
-    Default: _true_
-
 *   **-d, --portal-dhcp-range** dhcp_range, **$PORTAL_DHCP_RANGE**
 
     Portal DHCP range
@@ -48,13 +42,13 @@ Command line options have environment variable counterpart. If both a command li
 
     Default: _WiFi Connect_
 
-*   **-t, --timeout** timeout, **$CONNECT_TIMEOUT**
+*   **-a, --activity-timeout** timeout, **$ACTIVITY_TIMEOUT**
 
-    Connect timeout (milliseconds)
+    Activity timeout (seconds)
 
-    Default: _15000_
+    Default: _0 - no timeout_
 
-*   **-u, --ui-path** ui_path, **$UI_PATH**
+*   **-u, --ui-directory** ui_directory, **$UI_DIRECTORY**
 
     Web UI directory location
 

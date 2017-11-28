@@ -48,9 +48,8 @@ fn main() {
     });
 
     match exit_rx.recv() {
-        Ok(result) => match result {
-            Err(reason) => error!("{}", reason),
-            Ok(_) => info!("Connection successfully established"),
+        Ok(result) => if let Err(reason) = result {
+            error!("{}", reason);
         },
         Err(e) => error!("Exit receiver error: {}", e.description()),
     }

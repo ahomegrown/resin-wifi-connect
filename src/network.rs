@@ -25,7 +25,7 @@ pub enum NetworkCommandResponse {
 
 #[cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
 pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
-    let manager = NetworkManager::with_method_timeout(config.timeout);
+    let manager = NetworkManager::new();
     debug!("Network Manager connection initialized");
 
     let device = match find_device(&manager, &config.interface) {
@@ -61,19 +61,22 @@ pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
     let exit_tx_server = exit_tx.clone();
     let network_tx_timeout = network_tx.clone();
     let gateway = config.gateway;
-    let ui_path = config.ui_path.clone();
+    let ui_directory = config.ui_directory.clone();
+    let activity_timeout = config.activity_timeout;
 
     thread::spawn(move || {
-        start_server(gateway, server_rx, network_tx, exit_tx_server, &ui_path);
+        start_server(gateway, server_rx, network_tx, exit_tx_server, &ui_directory);
     });
 
-    thread::spawn(move || {
-        thread::sleep(Duration::from_secs(60));
+    if config.activity_timeout != 0 {
+        thread::spawn(move || {
+            thread::sleep(Duration::from_secs(activity_timeout));
 
-        if let Err(err) = network_tx_timeout.send(NetworkCommand::Timeout) {
-            error!("Sending NetworkCommand::Timeout failed: {}", err.description());
-        }
-    });
+            if let Err(err) = network_tx_timeout.send(NetworkCommand::Timeout) {
+                error!("Sending NetworkCommand::Timeout failed: {}", err.description());
+            }
+        });
+    }
 
     let mut activated = false;
 
@@ -165,7 +168,7 @@ pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
                     match wifi_device.connect(access_point, &passphrase as &str) {
                         Ok((connection, state)) => {
                             if state == ConnectionState::Activated {
-                                match wait_for_connectivity(&manager, config.timeout) {
+                                match wait_for_connectivity(&manager, 20) {
                                     Ok(has_connectivity) => {
                                         if has_connectivity {
                                             info!("Connectivity established");
