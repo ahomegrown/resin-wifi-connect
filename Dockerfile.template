@@ -18,4 +18,4 @@ RUN curl https://api.github.com/repos/resin-io/resin-wifi-connect/releases/lates
 
 COPY start .
 
-CMD ["bash", "start"]
+CMD ["bash", "scripts/start.sh"]
