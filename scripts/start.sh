@@ -23,6 +23,4 @@ else
     ./resin-wifi-connect
 fi
 
-while true; do
-    sleep 100
-done
+# Start your application here.
