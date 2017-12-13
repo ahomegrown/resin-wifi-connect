@@ -55,12 +55,24 @@ The full application flow is illustrated in the [state flow diagram](./docs/stat
 
 ***
 
-How to use
-----------
+Installation
+------------
 
-WiFi Connect is designed to be integrated with a [resin.io](http://resin.io) application. (New to resin.io? Check out the [Getting Started Guide](http://docs.resin.io/#/pages/installing/gettingStarted.md).) This integration is accomplished through the use of two shared files:
+WiFi Connect is designed to work on systems like Raspbian or Debian, or run in a docker container on top of resinOS.
+
+## Raspbian/Debian Stretch
+
+WiFi Connect depends on NetworkManager, but by default Raspbian Stretch uses dhcpcd as a network manager. The provided installation shell script disables dhcpcd, installs NetworkManager as the active network manager and downloads and installs WiFi Connect.
+
+Run the following in your terminal, then follow the onscreen instructions:
+
+`curl https://raw.githubusercontent.com/resin-io/resin-wifi-connect/master/scripts/raspbian-install.sh -sSf | bash`
+
+## resinOS
+
+WiFi Connect can be integrated with a [resin.io](http://resin.io) application. (New to resin.io? Check out the [Getting Started Guide](http://docs.resin.io/#/pages/installing/gettingStarted.md).) This integration is accomplished through the use of two shared files:
 - The [Dockerfile template](./Dockerfile.template) manages dependencies. The example included here has everything necessary for WiFi Connect. Application dependencies need to be added. For help with Dockerfiles, take a look at this [guide](https://docs.resin.io/deployment/dockerfile/).
-- The [start script](./start) should contain the commands that run the application. Adding these commands after [line 5](./start#L5) will ensure that everything kicks off after WiFi is correctly configured. 
+- The [start script](./scripts/start.sh) should contain the commands that run the application. Adding these commands at the end of the script will ensure that everything kicks off after WiFi is correctly configured. 
 An example of using WiFi Connect in a Python project can be found [here](https://github.com/resin-io-projects/resin-wifi-connect-example).
 
 ***
