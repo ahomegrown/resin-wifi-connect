@@ -60,7 +60,7 @@ Installation
 
 WiFi Connect is designed to work on systems like Raspbian or Debian, or run in a docker container on top of resinOS.
 
-## Raspbian/Debian Stretch
+### Raspbian/Debian Stretch
 
 WiFi Connect depends on NetworkManager, but by default Raspbian Stretch uses dhcpcd as a network manager. The provided installation shell script disables dhcpcd, installs NetworkManager as the active network manager and downloads and installs WiFi Connect.
 
@@ -68,7 +68,7 @@ Run the following in your terminal, then follow the onscreen instructions:
 
 `curl https://raw.githubusercontent.com/resin-io/resin-wifi-connect/master/scripts/raspbian-install.sh -sSf | bash`
 
-## resinOS
+### resinOS
 
 WiFi Connect can be integrated with a [resin.io](http://resin.io) application. (New to resin.io? Check out the [Getting Started Guide](http://docs.resin.io/#/pages/installing/gettingStarted.md).) This integration is accomplished through the use of two shared files:
 - The [Dockerfile template](./Dockerfile.template) manages dependencies. The example included here has everything necessary for WiFi Connect. Application dependencies need to be added. For help with Dockerfiles, take a look at this [guide](https://docs.resin.io/deployment/dockerfile/).
