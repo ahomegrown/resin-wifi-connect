@@ -127,7 +127,7 @@ pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
                 }
             },
             NetworkCommand::Timeout => {
-                if activated == false {
+                if !activated {
                     info!("Timeout reached. Exiting...");
 
                     return exit_ok(exit_tx, dnsmasq, portal_connection, portal_ssid);
