@@ -65,7 +65,13 @@ pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
     let activity_timeout = config.activity_timeout;
 
     thread::spawn(move || {
-        start_server(gateway, server_rx, network_tx, exit_tx_server, &ui_directory);
+        start_server(
+            gateway,
+            server_rx,
+            network_tx,
+            exit_tx_server,
+            &ui_directory,
+        );
     });
 
     if config.activity_timeout != 0 {
@@ -73,7 +79,10 @@ pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
             thread::sleep(Duration::from_secs(activity_timeout));
 
             if let Err(err) = network_tx_timeout.send(NetworkCommand::Timeout) {
-                error!("Sending NetworkCommand::Timeout failed: {}", err.description());
+                error!(
+                    "Sending NetworkCommand::Timeout failed: {}",
+                    err.description()
+                );
             }
         });
     }
@@ -121,12 +130,7 @@ pub fn process_network_commands(config: &Config, exit_tx: &Sender<ExitResult>) {
                 if activated == false {
                     info!("Timeout reached. Exiting...");
 
-                    return exit_ok(
-                        exit_tx,
-                        dnsmasq,
-                        portal_connection,
-                        portal_ssid,
-                    );
+                    return exit_ok(exit_tx, dnsmasq, portal_connection, portal_ssid);
                 }
             },
             NetworkCommand::Connect { ssid, passphrase } => {
